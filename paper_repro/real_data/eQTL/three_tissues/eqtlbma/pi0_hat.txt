@@ -1,0 +1,5 @@
+nb of tests: 18826
+cutoff at the 11342-th BF
+estimate pi0-hat = 6.02465e-01
+18826 tests and pi0-hat = 6.02465e-01
+8584 significant tests, at cutoff log10(BF)=-0.28077

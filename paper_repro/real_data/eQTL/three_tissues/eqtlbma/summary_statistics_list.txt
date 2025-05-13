@@ -1,0 +1,3 @@
+artery_aorta ./data/sstats_artery_aorta.txt.gz
+liver ./data/sstats_liver.txt.gz
+muscle_skeletal ./data/sstats_muscle_skeletal.txt.gz
