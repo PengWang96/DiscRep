@@ -1,11 +1,19 @@
 Package: DiscRep
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Diagnosing Scientific Replicability through Probabilistic Distinguishability
+Version: 0.1
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    c(person("Peng", "Wang", email = "wangpeng21@mails.jlu.edu.cn", role = c("aut", "cre")),
+    person("Xiaoquan", "Wen", email = "xwen@umich.edu", role = "aut"),
+    person("Hongyuan", "Cao", email = "hcao@fsu.edu", role = "aut"))
+Description: This package implements the Metropolis-Hastings algorithm for 
+  computing posterior-predictive replication p-values (posterior-PRPs) under distinguishability criterion.
+Maintainer: Peng Wang <wangpeng21@mails.jlu.edu.cn>
+License: GPL-3
 Encoding: UTF-8
+Imports: stats
+Depends: R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+LazyData: true
+URL: https://github.com/PengWang96/DiscRep
+BugReports: https://github.com/PengWang96/DiscRep/issues
