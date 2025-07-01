@@ -2,6 +2,18 @@
 
 Welcome to the R package repository! This package includes functions for fitting random and fixed effect models, calculating Posterior-PRP, and performing hypothesis testing in meta-analysis. Below, you'll find details on how to install the package, use the provided functions, and example workflows.
 
+## System Requirements
+
+- Software Dependencies:
+  - R (≥ v3.5.0).
+  - R packages: stats (≥ v4.4.3, base R), devtools (≥ v2.4.5, for installation only).
+
+- Tested Environments:
+  - Windows 11 (22H2), 13th Gen Intel Core i9-13900HX, 16GB RAM.
+
+- Hardware: Standard desktop/laptop (no specialized hardware required).
+
+
 ## Installation
 
 To install this R package from GitHub, you'll need to use the `devtools` package. If you haven't already installed `devtools`, you can do so by running:
@@ -16,7 +28,7 @@ Once `devtools` is installed, you can install the `DiscRep` package directly fro
 devtools::install_github("PengWang96/DiscRep")
 ```
 
-After installation, you can load the package into your R environment using:
+The installation time is typically within 5 seconds (depending on your network speed). After installation, you can load the package into your R environment using:
 
 ```r
 library(DiscRep)
@@ -80,6 +92,9 @@ results_random_egger <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_
 print(results_random_egger)
 ```
 
+Expected output is `results_random_egger$p_value`, which is posterior-PRP. Posterior-PRP < 0.05 supports irreplicability. 
+
+The program run time for repeating this example 2000 times using parallel computation in R on the previously provided computer specifications is 20 minutes.
 
 #### Additional Examples:
 - Using the `Q` test:
