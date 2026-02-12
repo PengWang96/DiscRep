@@ -95,7 +95,7 @@ plot <- ggplot(data=data_long, aes(x=eta, y=value)) +
   geom_line(linewidth=1, color = "#6186ad") +
   geom_point(size=3, color = "#6186ad") +
   geom_hline(yintercept = 0.05, linetype = "dashed", color = "black", linewidth = 0.8) +
-  labs(x = "Batch Contamination Level", y = "Proportion of Flagged Experiments") +
+  labs(x = "Batch Contamination Level", y = "Proportion of Flagged Datasets") +
   theme_bw() +
   theme(
     plot.title = element_text(size = 15, hjust = 0.5),
