@@ -31,3 +31,7 @@ devtools::install(quiet = quiet)
 
 library(DiscRep)
 P_mis(0)
+pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)
+k_vec <- sapply(pvec, inverse_P_mis)
+hist(k_vec)
+hist(pvec)
