@@ -14,7 +14,7 @@ A data frame containing 33 studies with the observed effect sizes and their with
 \source{
 Liu CJ, Latham NK (2009). "Progressive resistance strength training for
 improving physical function in older adults." \emph{Cochrane Database of Systematic Reviews},
-\bold{3}. Art. No.: CD002759. <\doi{10.1002/14651858.CD002759.pub2}>
+\bold{3}. Art. No.: CD002759. \if{html}{\out{<\doi{10.1002/14651858.CD002759.pub2}>}}
 }
 \usage{
 data("dat.lcj")

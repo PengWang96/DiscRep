@@ -105,7 +105,8 @@ metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
       # meann <- varr * (1 / (k[i]^2 * bar_beta[i]) + hat_beta / hat_sigma_sq)
       if (k[i] != 0) {
         varr <- (k[i]^2 * bar_beta[i]^2 * hat_sigma_sq) / (k[i]^2 * bar_beta[i]^2 + hat_sigma_sq)
-        meann <- varr * (k[i]^2 * bar_beta[i] * hat_beta + hat_sigma_sq) / (k[i]^2 * bar_beta[i] * hat_sigma_sq)##############
+        meann <- (hat_sigma_sq * bar_beta[i] + k[i]^2 * bar_beta[i]^2 * hat_beta) / (hat_sigma_sq + k[i]^2 * bar_beta[i]^2)
+        # meann <- varr * (k[i]^2 * bar_beta[i] * hat_beta + hat_sigma_sq) / (k[i]^2 * bar_beta[i] * hat_sigma_sq)##############
         beta_star <- rnorm(m,
                            mean = meann,
                            sd = sqrt(varr))
@@ -317,6 +318,9 @@ frequency_pvalue <- function(hat_beta, hat_sigma_sq) {
 #' P_mis(1)
 #' @export
 P_mis <- function(k) {
+  if (k == 0) {
+    return(0)
+  }
   integrand <- function(z) {
     1 / (1 + exp(0.5 * (1/k)^2 + z/k)) * dnorm(z)
   }

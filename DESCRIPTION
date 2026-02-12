@@ -1,6 +1,6 @@
 Package: DiscRep
 Title: Diagnosing Scientific Replicability through Probabilistic Distinguishability
-Version: 0.1
+Version: 0.1.1
 Authors@R: 
     c(person("Peng", "Wang", email = "wangpeng21@mails.jlu.edu.cn", role = c("aut", "cre")),
     person("Xiaoquan", "Wen", email = "xwen@umich.edu", role = "aut"),
@@ -13,7 +13,10 @@ Encoding: UTF-8
 Imports: stats
 Depends: R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 LazyData: true
 URL: https://github.com/PengWang96/DiscRep
 BugReports: https://github.com/PengWang96/DiscRep/issues
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

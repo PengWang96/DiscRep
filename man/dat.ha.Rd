@@ -14,7 +14,7 @@ A data frame containing 109 studies with the observed effect sizes and their wit
 }
 \source{
 Hrobjartsson A, Gotzsche PC (2010). "Placebo interventions for all clinical conditions."
-\emph{Cochrane Database of Systematic Reviews}, \bold{1}. Art. No.: CD003974. <\doi{10.1002/14651858.CD003974.pub3}>
+\emph{Cochrane Database of Systematic Reviews}, \bold{1}. Art. No.: CD003974. \if{html}{\out{<\doi{10.1002/14651858.CD003974.pub3}>}}
 }
 \usage{
 data("dat.ha")
