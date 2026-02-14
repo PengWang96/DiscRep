@@ -12,8 +12,8 @@ metropolis_hastings(
   hat_sigma_sq,
   test = "Q",
   side = "one.side",
-  heterogeneity_level = NULL,
-  k_vec = NULL
+  k_vec = NULL,
+  bar_beta_init = NULL
 )
 }
 \arguments{
@@ -31,11 +31,16 @@ metropolis_hastings(
 
 \item{side}{Character. Type of hypothesis test to perform. Options are \code{"one.side"} (one-tailed) or \code{"two.side"} (two-tailed).}
 
-\item{heterogeneity_level}{Numeric (optional). If provided, specifies a fixed tolerable level of heterogeneity to override \code{k_vec}.}
-
 \item{k_vec}{Numeric vector (optional). A precomputed vector of \code{k} values, representing heterogeneity levels corresponding to a range of misclassification probabilities (\code{P_mis}) from 0 to 0.05.
-If \code{k_vec} is provided, it will be used for sampling during MCMC.
+If \code{k_vec} is \code{NULL}, a default vector is generated using
+\verb{pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)},
+and cached for reuse within the current R process.
+If \code{k_vec} has length 1, a fixed heterogeneity level is used.
+If \code{k_vec} has length > 1, \code{k} is sampled from \code{k_vec} during MCMC.
 Example generation: \verb{pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)}.}
+
+\item{bar_beta_init}{Numeric scalar (optional). Initial value of \code{bar_beta} at iteration 1.
+If \code{NULL}, the default initialization is \code{hat_beta[1]}.}
 }
 \value{
 A list containing the following elements:
@@ -51,10 +56,9 @@ It is designed to test hypotheses of replicability with tolerable heterogeneity 
 \details{
 This function implements a Metropolis-Hastings algorithm to sample from the posterior
 distribution of the model parameters under the distinguishability criterion.
-If \code{k_vec} is not provided, the function will throw an error, as it requires precomputed heterogeneity levels.
-
-The \code{heterogeneity_level} parameter, if specified, overrides the use of \code{k_vec} for sampling the heterogeneity levels.
-In such cases, a fixed \code{k} corresponding to the given heterogeneity level will be used throughout the simulation.
+If \code{k_vec} is not provided, a default \code{k_vec} is generated and cached.
+A warning is issued if any value in \code{k_vec} is greater than 0.2726814,
+because only \verb{0 <= k <= 0.2726814} corresponds to \code{P_mis < 0.05}.
 }
 \examples{
 # Generate k_vec using a logarithmic sequence
@@ -73,4 +77,23 @@ result <- metropolis_hastings(
 
 # Print results
 print(result$p_value)
+
+# Use default cached k_vec
+result_default <- metropolis_hastings(
+  N = 10000,
+  r = 0.05,
+  m = 2,
+  hat_beta = c(0.4, 0.6),
+  hat_sigma_sq = c(0.1, 0.2)
+)
+
+# Set custom bar_beta initialization
+result_custom_init <- metropolis_hastings(
+  N = 10000,
+  r = 0.05,
+  m = 2,
+  hat_beta = c(0.4, 0.6),
+  hat_sigma_sq = c(0.1, 0.2),
+  bar_beta_init = 0.5
+)
 }

@@ -1,5 +1,3 @@
-if (getRversion() >= "2.15.1")  utils::globalVariables(c("k_vec"))
-
 #' Compute Posterior−PRP under distinguishability criterion using Metropolis-Hastings MCMC Algorithm
 #'
 #' This function computes the posterior probability under the distinguishability criterion
@@ -13,10 +11,15 @@ if (getRversion() >= "2.15.1")  utils::globalVariables(c("k_vec"))
 #' @param hat_sigma_sq Numeric vector. The squared standard errors corresponding to the estimated effects in `hat_beta`.
 #' @param test Character. Type of test statistic to use. Options are `"Q"` (heterogeneity test) or `"Egger"` (Egger's regression test).
 #' @param side Character. Type of hypothesis test to perform. Options are `"one.side"` (one-tailed) or `"two.side"` (two-tailed).
-#' @param heterogeneity_level Numeric (optional). If provided, specifies a fixed tolerable level of heterogeneity to override `k_vec`.
 #' @param k_vec Numeric vector (optional). A precomputed vector of `k` values, representing heterogeneity levels corresponding to a range of misclassification probabilities (`P_mis`) from 0 to 0.05.
-#'              If `k_vec` is provided, it will be used for sampling during MCMC.
+#'              If `k_vec` is `NULL`, a default vector is generated using
+#'              `pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)`,
+#'              and cached for reuse within the current R process.
+#'              If `k_vec` has length 1, a fixed heterogeneity level is used.
+#'              If `k_vec` has length > 1, `k` is sampled from `k_vec` during MCMC.
 #'              Example generation: `pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)`.
+#' @param bar_beta_init Numeric scalar (optional). Initial value of `bar_beta` at iteration 1.
+#'              If `NULL`, the default initialization is `hat_beta[1]`.
 #' @return A list containing the following elements:
 #' \item{p_value}{Numeric. The computed p-value for the test.}
 #' \item{bar_beta}{Numeric vector. The estimated posterior means for each iteration of MCMC.}
@@ -24,10 +27,9 @@ if (getRversion() >= "2.15.1")  utils::globalVariables(c("k_vec"))
 #' @details
 #' This function implements a Metropolis-Hastings algorithm to sample from the posterior
 #' distribution of the model parameters under the distinguishability criterion.
-#' If `k_vec` is not provided, the function will throw an error, as it requires precomputed heterogeneity levels.
-#'
-#' The `heterogeneity_level` parameter, if specified, overrides the use of `k_vec` for sampling the heterogeneity levels.
-#' In such cases, a fixed `k` corresponding to the given heterogeneity level will be used throughout the simulation.
+#' If `k_vec` is not provided, a default `k_vec` is generated and cached.
+#' A warning is issued if any value in `k_vec` is greater than 0.2726814,
+#' because only `0 <= k <= 0.2726814` corresponds to `P_mis < 0.05`.
 #'
 #' @importFrom stats rnorm runif
 #' @examples
@@ -47,23 +49,62 @@ if (getRversion() >= "2.15.1")  utils::globalVariables(c("k_vec"))
 #'
 #' # Print results
 #' print(result$p_value)
+#'
+#' # Use default cached k_vec
+#' result_default <- metropolis_hastings(
+#'   N = 10000,
+#'   r = 0.05,
+#'   m = 2,
+#'   hat_beta = c(0.4, 0.6),
+#'   hat_sigma_sq = c(0.1, 0.2)
+#' )
+#'
+#' # Set custom bar_beta initialization
+#' result_custom_init <- metropolis_hastings(
+#'   N = 10000,
+#'   r = 0.05,
+#'   m = 2,
+#'   hat_beta = c(0.4, 0.6),
+#'   hat_sigma_sq = c(0.1, 0.2),
+#'   bar_beta_init = 0.5
+#' )
 #' @export
 metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
-                                side = "one.side", heterogeneity_level = NULL, k_vec = NULL) {
+                                side = "one.side", k_vec = NULL, bar_beta_init = NULL) {
 
-  if (is.null(k_vec) & is.null(heterogeneity_level)) {
-    stop("k values corresponding to probability of misclassification or
-         specific heterogeneity level must be provided.")
+  if (is.null(k_vec)) {
+    k_vec <- get_default_k_vec()
   }
 
-  if (!is.null(heterogeneity_level) & !is.null(k_vec)) {
-    warning("Both heterogeneity_level and k_vec are provided. Defaulting to use heterogeneity_level.")
+  if (!is.numeric(k_vec) || length(k_vec) == 0 || anyNA(k_vec)) {
+    stop("k_vec must be a non-empty numeric vector without NA.")
   }
+
+  if (any(k_vec < 0)) {
+    stop("k_vec must be non-negative.")
+  }
+
+  if (!is.null(bar_beta_init) &&
+      (!is.numeric(bar_beta_init) || length(bar_beta_init) != 1 ||
+       is.na(bar_beta_init) || !is.finite(bar_beta_init))) {
+    stop("bar_beta_init must be a single finite numeric value.")
+  }
+
+  k_pmis_0_05 <- 0.2726814
+  if (any(k_vec > k_pmis_0_05)) {
+    warning(
+      "Use heterogeneity levels > 0.2726814 with caution: only 0 <= k <= 0.2726814 corresponds to P_mis < 0.05.",
+      call. = FALSE
+    )
+  }
+
+  is_fixed_k <- length(k_vec) == 1
 
   # Initialization
-  k_max <- if (!is.null(heterogeneity_level)) heterogeneity_level else 0.2726814
+  bar_beta_start <- if (is.null(bar_beta_init)) hat_beta[1] else bar_beta_init
+  k_max <- if (is_fixed_k) k_vec[1] else k_pmis_0_05
   # k = 100, 0.5420572, 0.4626489, 0.3349839, 0.2726814 corresponding to P_mis = 0.5, 0.25, 0.2, 0.1, 0.05
-  bar_beta <- rep(hat_beta[1], N)
+  bar_beta <- rep(bar_beta_start, N)
   k <- rep(k_max, N)
   count <- 0
   count2 <- 0
@@ -79,7 +120,7 @@ metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
 
 
     # Sample k*
-    k_star <- if (!is.null(heterogeneity_level)) k_max else sample(k_vec, 1)
+    k_star <- if (is_fixed_k) k_max else sample(k_vec, 1)
 
     # Calculate acceptance ratio a
     a1 <- g(bar_beta_star, hat_beta, hat_sigma_sq, k_star)
@@ -359,6 +400,19 @@ inverse_P_mis <- function(P_mis_val, lower = 1e-6, upper = 100,
   return((lower + upper) / 2)
 }
 
+# Cache default k-grid once per R process to avoid repeated inverse_P_mis calls.
+.disc_rep_cache <- new.env(parent = emptyenv())
+
+get_default_k_vec <- function() {
+  k_vec_default <- get0("k_vec_default", envir = .disc_rep_cache, inherits = FALSE)
+  if (is.null(k_vec_default)) {
+    pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)
+    k_vec_default <- sapply(pvec, inverse_P_mis)
+    assign("k_vec_default", k_vec_default, envir = .disc_rep_cache)
+  }
+  k_vec_default
+}
+
 
 
 
@@ -596,18 +650,19 @@ shuffle <- function(xv, rep){
 sim_batch <- function(bb_sd, k, bbar, m, bc_grp_num, sample_size, Gv, Batch, rnse) {
   grp_num <- m
 
-  btv = bbar + rnorm(grp_num, sd = sqrt(k^2*bbar^2))
+  btv <- bbar + rnorm(grp_num, sd = sqrt(k^2 * bbar^2))
 
-  bbv = rep(0, grp_num)
-  bbv[1:bc_grp_num] = rnorm(bc_grp_num, sd = bb_sd)
+  bbv <- rep(0, grp_num)
+  bbv[1:bc_grp_num] <- rnorm(bc_grp_num, sd = bb_sd)
 
-  rst = c()
+  rst <- c()
   for (i in 1:grp_num) {
-    gv = Gv[i,]
-    batch = Batch[i,]
-    y = btv[i] * gv + bbv[i] * batch + rnorm(sample_size, sd = rnse)
-    m = summary(lm(y ~ gv))
-    rst = c(rst, m$coef[2, 1], m$coef[2, 2])
+    gv <- Gv[i,]
+    batch <- Batch[i,]
+    y <- btv[i] * gv + bbv[i] * batch + rnorm(sample_size, sd = rnse)
+    dat <- data.frame(y = y, gv = gv)
+    fit <- summary(lm(y ~ gv, data = dat))
+    rst <- c(rst, fit$coef[2, 1], fit$coef[2, 2])
   }
 
   return(rst)

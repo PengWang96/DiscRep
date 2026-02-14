@@ -47,7 +47,6 @@ save(hat_sigma_sq,
 # k_vec <- sapply(pvec, inverse_P_mis)
 pvec <- c(10^seq(-10, log10(0.05), 0.01),0.05)
 k_vec <- sapply(pvec, inverse_P_mis)
-# load("D:/R/Replicability/Peng/batch effect/data/k_vec.rda")
 N <- 10000
 r <- 0.05 # burn-in rate
 
@@ -56,7 +55,7 @@ cl <- makeCluster(numCores)
 registerDoParallel(cl)
 sim_results <- foreach(x = 1:num_simulations, .combine = combine_results, .packages = "DiscRep") %dopar% {
   metropolis_hastings(N, r, m, hat_beta[x,], hat_sigma_sq[x,], k_vec = k_vec)
-  # metropolis_hastings(N, r, m, hat_beta[x,], hat_sigma_sq[x,], heterogeneity_level = 0.27)
+  # metropolis_hastings(N, r, m, hat_beta[x,], hat_sigma_sq[x,], k_vec = 0.27)
 } 
 stopCluster(cl)
 

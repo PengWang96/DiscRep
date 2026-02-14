@@ -1,12 +1,12 @@
 # README
 
-Welcome to the R package repository! This package includes functions for fitting random and fixed effect models, calculating Posterior-PRP, and performing hypothesis testing in meta-analysis. Below, you'll find details on how to install the package, use the provided functions, and example workflows.
+DiscRep provides tools for assessing replicability using the distinguishability criterion and posterior-PRP. It supports random and fixed effect models, tests for heterogeneity and publication bias, and tissue-specific eQTL analysis.
 
 ## System Requirements
 
 - Software Dependencies:
-  - R (≥ v3.5.0).
-  - R packages: stats (≥ v4.4.3, base R), devtools (≥ v2.4.5, for installation only).
+  - R (>= v3.5.0).
+  - R packages: stats (>= v4.4.3, base R), devtools (>= v2.4.5, for installation only).
 
 - Tested Environments:
   - Windows 11 (22H2), 13th Gen Intel Core i9-13900HX, 16GB RAM.
@@ -80,8 +80,8 @@ m <- nrow(dat.slf)
 hat_beta <- dat.slf$y
 hat_sigma_sq <- dat.slf$s2
 
-# k values corresponding to inverse function of misclassification probability function or
-# specific heterogeneity level must be provided.
+# Optional: precompute k_vec once and reuse
+# (recommended for large simulations to avoid repeated setup cost).
 pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)
 k_vec <- sapply(pvec, inverse_P_mis)
 
@@ -103,16 +103,20 @@ The program run time for repeating this example 2000 times using parallel comput
 results_random_q <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, test = "Q", k_vec = k_vec)
 ```
 
-- Specifying a tolerable heterogeneity level (e.g., `k = 0.2726814` corresponds to $P_{mis} = 0.05$):
+- Specifying a fixed tolerable heterogeneity level (e.g., `k = 0.2726814` corresponds to $P_{mis} = 0.05$):
 
 ```r
-results_random_heterogeneity <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, heterogeneity_level = 0.2726814)
+results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726814)
 ```
 
 #### Note
 
-If a specific heterogeneity level (`heterogeneity_level`) is not provided in functions like `metropolis_hastings`, 
-`k_vec` must be loaded to provide default values for `k`, ensuring that `k` values corresponding to different misclassification probabilities are available for the analysis.
+In `metropolis_hastings`, `k_vec` is optional.
+If omitted, the function uses default
+`pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)`
+and caches it in the current R process.
+For large simulation loops, precompute `k_vec` once outside the loop and pass it in.
+The function warns if any `k_vec > 0.2726814`, because only `k` in `[0, 0.2726814]` corresponds to `P_mis < 0.05`.
 
 
 ### 2. Get posterior-PRPs under Fixed Effect Model: `fixed_effect`
@@ -165,8 +169,8 @@ m <- nrow(dat.slf)
 hat_beta <- dat.slf$y
 hat_sigma_sq <- dat.slf$s2
 
-# k values corresponding to inverse function of misclassification probability function or
-# specific heterogeneity level must be provided.
+# Optional: precompute k_vec once and reuse
+# (recommended for large simulations to avoid repeated setup cost).
 pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)
 k_vec <- sapply(pvec, inverse_P_mis)
 
@@ -178,9 +182,9 @@ print(results_random_egger)
 results_random_q <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, test = "Q", k_vec = k_vec)
 print(results_random_q)
 
-# Random Effect Model with specified heterogeneity level
-results_random_heterogeneity <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, heterogeneity_level = 0.2726814)
-print(results_random_heterogeneity)
+# Random Effect Model with fixed heterogeneity level
+results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726814)
+print(results_random_fixed_k)
 
 # Fixed Effect Model
 results_fixed <- fixed_effect(10000, m, hat_beta, hat_sigma_sq)
@@ -199,7 +203,7 @@ print(prp_result)
 ## Data and reproducibility
 
 All the R scripts to reproduce the numeric simulation results and real data analysis in 
-the manuscript can be found in “paper_repro” folder.
+the manuscript can be found in “paper_repro�?folder.
 
 
 # References

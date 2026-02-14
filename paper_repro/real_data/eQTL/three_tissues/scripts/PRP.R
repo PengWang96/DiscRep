@@ -122,7 +122,7 @@ sum(result$p_values <= 0.05)
 # save(result, file = "../output/results_Cochran_Q.rda")
 # write.table(result, file = "../output/results_Cochran_Q.txt",
 #             sep = "\t", row.names = FALSE, quote = FALSE)
-save(result, file = "../output/results_PRP.rda") # without fixed heterogeneity_level
+save(result, file = "../output/results_PRP.rda") # without fixed k
 write.table(result, file = "../output/results_PRP.txt",
             sep = "\t", row.names = FALSE, quote = FALSE)
 # save(result, file = "../output/results_PRP_Pmis0(NumInt).rda")
@@ -193,7 +193,7 @@ t2 <- Sys.time()
 #
 #
 # for(p_idx in 1:length(P_mis_vec)) {
-#   heterogeneity_level <- k_vec[p_idx]
+#   k_fixed <- k_vec[p_idx]
 #   p_values_per_pmis <- vector("list", parts)  # 每个parts的结果将存储在这个list中
 #
 #   for(i in 1:parts) {
@@ -206,7 +206,7 @@ t2 <- Sys.time()
 #     part_hat_sigma_sq <- hat_sigma_sq[start_row:end_row, ]
 #
 #     p_values_per_pmis[[i]] <- foreach(x = 1:nrow(part_hat_beta), .combine = c, .packages = "DiscRep") %dopar% {
-#       metropolis_hastings(N, r, m, part_hat_beta[x, ], part_hat_sigma_sq[x, ], heterogeneity_level = heterogeneity_level)$p_value
+#       metropolis_hastings(N, r, m, part_hat_beta[x, ], part_hat_sigma_sq[x, ], k_vec = k_fixed)$p_value
 #     }
 #   }
 #   results_list[[p_idx]] <- do.call(c, p_values_per_pmis)
@@ -221,7 +221,7 @@ t2 <- Sys.time()
 #
 #
 # result <- as.data.frame(cbind(gene, p_values_df))
-# save(result, file = "../output/results_PRP_matrix.rda") # without fixed heterogeneity_level
+# save(result, file = "../output/results_PRP_matrix.rda") # without fixed k
 # write.table(result, file = "../output/results_PRP_matrix.txt",
 #             sep = "\t", row.names = FALSE, quote = FALSE)
 # t2 <- Sys.time()
