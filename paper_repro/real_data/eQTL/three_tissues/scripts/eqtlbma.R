@@ -95,10 +95,6 @@ setwd(dirname(current_file))
 print(getwd())
 load("../output/results_PRP.rda")
 PRP <- result
-# load("../output/results_Cochran_Q.rda")
-# Q_pval <- result
-# load("../output/results_PRP_Pmis0(MH-MCMC).rda")
-# PRP_k0 <- result
 eqtlbma <- read.table("../eqtlbma/marginal_probability.txt.gz", header=T)
 
 index <- match(PRP[, 1], eqtlbma[, 1])
@@ -145,7 +141,7 @@ smoothScatter(
   nrpoints = 0,
   transformation = sqrt,
   xlab = "Posterior-PRPs",
-  ylab = "Tissue-consistency Probability (eQtlBma)"
+  ylab = "Tissue-consistency probability (eQtlBma)"
 )
 
 
@@ -166,7 +162,7 @@ data_comp <- data.frame(
 ggplot(data_comp, aes(x = value, fill = Method)) +
   geom_histogram(position = "dodge", bins = 20, alpha = 0.7, color = "black") +
   scale_fill_manual(values = c("#1f77b4", "#ff7f0e")) + # 可自定义颜色
-  labs(title = "Histogram Comparison of PRPP and eqtlbmaa",
+  labs(title = "Histogram Comparison of PRP and eqtlbmaa",
        x = "Value",
        y = "Frequency",
        fill = "Method") +
@@ -278,7 +274,7 @@ gene_symbols <- c(
   # "MSH4",
   "ZC3H13"
   )
-gene_index <- 1
+gene_index <- 1  ######################################################################
 
 data <- read.table("../data/simple_data.3tissue.summary", header = TRUE)
 data <- na.omit(data)
@@ -323,116 +319,3 @@ p <- forestplot(labeltext = labels,
                   zero = "gray50"
                 ))
 p
-
-
-
-
-
-################################################################################
-####### Compare varying Pmis ###################################################
-################################################################################
-rm(list = ls())
-library(ggplot2)
-setwd("D:/R/Replicability/Peng/real data/eQTL/three tissues/output")
-load_data <- function(k) {
-  load(paste0("reslutQ_k", k, ".rda"))
-  data.frame(k = k, p_value = result_all$p_values)
-}
-k_values <- c(0, 0.2726814, 0.3349839, 0.4626489, 0.5420572, 100)
-P_mis_values <- c(0, 0.05, 0.1, 0.2, 0.25, 0.5)
-data <- do.call(rbind, lapply(k_values, load_data))
-
-library(dplyr)
-groups <- c("P_mis = 0, # of sig. p-value = 8439",
-            "P_mis = 0.05, # of sig. p-value = 8286",
-            "P_mis = 0.1, # of sig. p-value = 8053",
-            "P_mis = 0.2, # of sig. p-value = 7412",
-            "P_mis = 0.25, # of sig. p-value = 6913",
-            "P_mis = 0.5, # of sig. p-value = 0")
-data <- data %>%
-  mutate(group = factor(k, levels = k_values, labels = groups))
-
-
-
-# # Define a function to calculate the count of p-values less than 0.05
-# count_p_less_than_0.05 <- function(df) {
-#   sum(df < 0.05)
-# }
-# counts <- tapply(data$p_value, data$k, count_p_less_than_0.05)
-
-ggplot(data, aes(x = p_value)) +
-  geom_histogram(color="white", fill="#6186ad", bins=20, boundary=0, alpha=0.8) +
-  facet_wrap(~ group) +
-  theme_bw() +
-  scale_x_continuous(limits = c(-0.00, 1.00)) +
-  labs(x = "p-value", y = "Count", title = "Histogram of p-values for different P_mis")
-
-
-
-
-
-
-
-
-
-
-
-
-
-# library(forestplot)
-# library(ggplotify)
-# library(patchwork)
-# data <- read.table("../data/simple_data.3tissue.summary", header = TRUE)
-# data <- na.omit(data)
-# head(data)
-#
-# # selected_genes <- c('ENSG00000214226.8', 'ENSG00000116205.12',
-# #                     'ENSG00000166002.6', 'ENSG00000219200.11')
-# selected_genes <- data$gene[which(eqtlbmaa > 0.95 & PRPP < 0.001)[c(1, 2, 3, 6)]]
-# selected_genes
-# plots <- list()
-# for (i in 1:4) {
-#   selected_gene <- data[data$gene == selected_genes[i],]
-#
-#   plot_matrix <- matrix(c(
-#     selected_gene$bhat_Artery_Aorta, selected_gene$bhat_Liver, selected_gene$bhat_Muscle_Skeletal,
-#     selected_gene$bhat_Artery_Aorta - 1.96 * selected_gene$se_Artery_Aorta,
-#     selected_gene$bhat_Liver - 1.96 * selected_gene$se_Liver,
-#     selected_gene$bhat_Muscle_Skeletal - 1.96 * selected_gene$se_Muscle_Skeletal,
-#     selected_gene$bhat_Artery_Aorta + 1.96 * selected_gene$se_Artery_Aorta,
-#     selected_gene$bhat_Liver + 1.96 * selected_gene$se_Liver,
-#     selected_gene$bhat_Muscle_Skeletal + 1.96 * selected_gene$se_Muscle_Skeletal
-#   ), nrow=3, byrow=TRUE)
-#
-#   # Create labels for the plot
-#   labels <- c('Artery Aorta', 'Liver', 'Muscle Skeletal')
-#
-#   p <-
-#     forestplot(labeltext=labels,
-#                mean=plot_matrix[1,],
-#                lower=plot_matrix[2,],
-#                upper=plot_matrix[3,],
-#                xlab=paste("Effect Size for Gene", selected_genes[i]),
-#                lwd.ci = 3, # Make the lines bolder
-#                txt_gp = fpTxtGp(
-#                  label = gpar(cex = 1.2),      # 调整y轴标签字体大小
-#                  ticks = gpar(cex = 1.2),      # 调整x轴刻度标签字体大小
-#                  xlab = gpar(cex = 1.4)        # 调整x轴标签字体大小
-#                ),
-#                boxsize = 0.15, # 调整图形元素大小
-#                lineheight = unit(1.5, "cm"), # 增加行高
-#                # col = fpColors(box = "royalblue", line = "darkblue", summary = "royalblue"),
-#                graphwidth = unit(80, "mm"), # 增加图形部分的宽度
-#                new_page = F)
-#
-#   plots[[i]] <- p
-# }
-#
-# p1_grob <- grid2grob(print(plots[[1]]))
-# p2_grob <- grid2grob(print(plots[[2]]))
-# p3_grob <- grid2grob(print(plots[[3]]))
-# p4_grob <- grid2grob(print(plots[[4]]))
-#
-# p_combined <- wrap_elements(p1_grob) + wrap_elements(p2_grob) +
-#   wrap_elements(p3_grob) + wrap_elements(p4_grob)
-# p_combined

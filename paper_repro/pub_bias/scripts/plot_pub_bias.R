@@ -1,9 +1,11 @@
-######## histogram: 不同 c 对应的 p value
+##############################################################################
+######## Histogram: p-values under different selection levels
+##############################################################################
 rm(list = ls())
 library(ggplot2)
 library(dplyr)
 library(rstudioapi)
-library(rprojroot)
+
 if (interactive()) {
   current_file <- rstudioapi::getActiveDocumentContext()$path
 } else {
@@ -13,74 +15,97 @@ if (interactive()) {
 setwd(dirname(current_file))
 print(getwd())
 
-load(file = paste0("../output/pvalue_c_", 0, ".rda"))
-p_values0 <- p_values
-load(file = paste0("../output/pvalue_c_", 10, ".rda"))
-p_values10 <- p_values; 2 * mean(p_values10)
-load(file = paste0("../output/pvalue_c_", 20, ".rda"))
-p_values20 <- p_values; 2 * mean(p_values20)
-load(file = paste0("../output/pvalue_cQ_", 0, ".rda"))
-p_valuesQ0 <- p_values
-load(file = paste0("../output/pvalue_cQ_", 10, ".rda"))
-p_valuesQ10 <- p_values
-load(file = paste0("../output/pvalue_cQ_", 20, ".rda"))
-p_valuesQ20 <- p_values
+source("../../plot_style.R")
 
-# 创建组合数据框
-combined_data <- data.frame(
-  Censor = rep(c("No Selection (c = 0)", "Modest Selection (c = 10)", "Strong Selection (c = 20)"),
-               each = length(p_valuesQ0),
-               times = 2),
-  Test = rep(c("Modified Q Statistic", "Modified Egger Statistic"), each = length(p_valuesQ0) * 3),
-  P_Value = c(p_valuesQ0, p_valuesQ10, p_valuesQ20, p_values0, p_values10, p_values20)
+style <- plot_fullwidth_style(
+  base_size = 6,
+  width = 7,
+  height = 4.5,
+  grid = TRUE
 )
 
-combined_data$Censor <- factor(combined_data$Censor,
-                               levels = c("No Selection (c = 0)",
-                                          "Modest Selection (c = 10)",
-                                          "Strong Selection (c = 20)"))
-head(combined_data)
+c_levels <- c(0, 10, 20)
+censor_levels <- c(
+  "No selection (c = 0)",
+  "Modest selection (c = 10)",
+  "Strong selection (c = 20)"
+)
+test_levels <- c(
+  "Modified Egger statistic",
+  "Modified Q statistic"
+)
 
-# 计算均值（仅针对 Censor = "No censoring (c = 0)"）
+# Load p-values for Modified Egger and Modified Q statistics.
+egger_values <- lapply(c_levels, function(c_val) {
+  readRDS(paste0("../output/pvalue_c_", c_val, ".rds"))
+})
+q_values <- lapply(c_levels, function(c_val) {
+  readRDS(paste0("../output/pvalue_cQ_", c_val, ".rds"))
+})
+
+# Build long-format data for 2x3 facets (rows = tests, columns = censor levels).
+combined_data <- bind_rows(
+  bind_rows(lapply(seq_along(c_levels), function(i) {
+    data.frame(
+      Censor = censor_levels[i],
+      Test = "Modified Egger statistic",
+      P_Value = egger_values[[i]]
+    )
+  })),
+  bind_rows(lapply(seq_along(c_levels), function(i) {
+    data.frame(
+      Censor = censor_levels[i],
+      Test = "Modified Q statistic",
+      P_Value = q_values[[i]]
+    )
+  }))
+)
+
+combined_data$Censor <- factor(combined_data$Censor, levels = censor_levels)
+combined_data$Test <- factor(combined_data$Test, levels = test_levels)
+
+# Show mean reference only in the c = 0 panels.
 means_data <- combined_data %>%
-  filter(Censor == "No Selection (c = 0)") %>%
+  filter(Censor == "No selection (c = 0)") %>%
   group_by(Censor, Test) %>%
-  summarize(mean_p = mean(P_Value))
+  summarize(mean_p = mean(P_Value), .groups = "drop")
 print(means_data)
-
 
 plot <- ggplot(combined_data, aes(x = P_Value)) +
   geom_histogram(color = "white", fill = "#6186ad", bins = 20, boundary = 0, alpha = 0.8) +
-  facet_grid(Censor ~ Test) +
-  labs(
-    x = "Posterior-PRPs under Distinguishability Criterion",
-    y = "Count"
+  facet_grid(Test ~ Censor) +
+  geom_vline(
+    data = means_data,
+    aes(xintercept = mean_p),
+    color = "blue",
+    linetype = "dashed",
+    linewidth = 0.6,
+    inherit.aes = FALSE
   ) +
-  theme_bw() +
-  # 添加垂直线，仅在 Censor = "No censoring (c = 0)" 的子图中
-  geom_vline(data = means_data, aes(xintercept = mean_p), color = "blue",
-             linetype = "dashed", linewidth = 0.6) +
-  # 添加均值标签，仅在 Censor = "No censoring (c = 0)" 的子图中
   geom_text(
     data = means_data,
     aes(x = mean_p, y = Inf, label = sprintf("Mean: %.3f", mean_p)),
     color = "blue",
-    vjust = 1.5,
+    family = style$base_family,
+    vjust = 2,
     hjust = -0.1,
-    size = 2.8,
+    size = style$geom_text_size_mm(6),
     inherit.aes = FALSE
-  )  +
+  ) +
   scale_y_continuous(breaks = c(0, 250, 500, 750, 1000)) +
+  labs(
+    x = "Posterior-PRPs",
+    y = "Count"
+  ) +
+  style$theme +
   theme(
-    axis.title.x = element_text(size = 8), # Increase x-axis title font size
-    axis.title.y = element_text(size = 8),  # Increase y-axis title font size
-    axis.text.x = element_text(size = 6),
-    axis.text.y = element_text(size = 6),
-    strip.text = element_text(size = 8)
+    axis.title = element_text(face = "plain"),
+    axis.text.y = element_text(angle = 90, vjust = 0.5, hjust = 0.5),
+    strip.text = element_text(face = "plain", size = 6.5),
+    plot.margin = margin(5, 6, 5, 6)
   )
 plot
-ggsave("../plot/pub_bias_pvalue.pdf", plot, width = 6, height = 6)
-dev.off()
+style$save_pdf(plot, "../plot/pub_bias_pvalue", w = 7, h = 4.5)
 
 
 
@@ -95,44 +120,52 @@ dev.off()
 
 
 
-######## Sensitivity: 不同 eta 对应的 不同方法的Sensitivity
+##############################################################################
+######## Sensitivity: compare methods under different selection levels
+##############################################################################
 rm(list = ls())
 library(ggplot2)
-data <- data.frame(c = c(0, 2.5, 5, 7.5, 10),
-                   `Posterior-PRP` = c(0.095, 0.165, 0.185, 0.255, 0.29),
-                   Egger = c(0.08, 0.13, 0.13, 0.15, 0.215),
-                   Begg = c(0.085, 0.085, 0.115, 0.2, 0.21))
+data <- data.frame(
+  c = c(0, 2.5, 5, 7.5, 10),
+  `Posterior-PRP` = c(0.095, 0.165, 0.185, 0.255, 0.29),
+  Egger = c(0.08, 0.13, 0.13, 0.15, 0.215),
+  Begg = c(0.085, 0.085, 0.115, 0.2, 0.21)
+)
 data_long <- reshape2::melt(data, id.vars = "c")
-ggplot(data=data_long, aes(x=c, y=value, color = variable)) +
-  geom_line(linewidth=1) +
-  geom_point(size=3) +
+ggplot(data = data_long, aes(x = c, y = value, color = variable)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
   labs(x = expression(eta), y = "Sensitivity") +
   theme_bw() +
   scale_y_continuous(limits = c(0.05, 0.4)) +
   scale_color_discrete(labels = c("Posterior-PRP", "Egger Test", "Begg Test")) +
-  theme(legend.title = element_blank(),
-        legend.position = c(0.95, 0.05),
-        legend.justification = c("right", "bottom"),
-        legend.direction = "vertical")
-
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.95, 0.05),
+    legend.justification = c("right", "bottom"),
+    legend.direction = "vertical"
+  )
 
 
 rm(list = ls())
 library(ggplot2)
-data <- data.frame(c = c(0, 2.5, 5, 7.5, 10),
-                   `Posterior-PRP` = c(0.121, 0.1275, 0.185, 0.249, 0.27),
-                   Egger = c(0.1285, 0.139, 0.139, 0.162, 0.162),
-                   Begg = c(0.0795, 0.0875, 0.1295, 0.1765, 0.2095))
+data <- data.frame(
+  c = c(0, 2.5, 5, 7.5, 10),
+  `Posterior-PRP` = c(0.121, 0.1275, 0.185, 0.249, 0.27),
+  Egger = c(0.1285, 0.139, 0.139, 0.162, 0.162),
+  Begg = c(0.0795, 0.0875, 0.1295, 0.1765, 0.2095)
+)
 data_long <- reshape2::melt(data, id.vars = "c")
-ggplot(data=data_long, aes(x=c, y=value, color = variable)) +
-  geom_line(linewidth=1) +
-  geom_point(size=3) +
+ggplot(data = data_long, aes(x = c, y = value, color = variable)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
   labs(x = "c", y = "Sensitivity") +
   theme_bw() +
   scale_y_continuous(limits = c(0.05, 0.3)) +
   scale_color_discrete(labels = c("Posterior-PRP", "Egger Test", "Begg Test")) +
-  theme(legend.title = element_blank(),
-        legend.position = c(0.95, 0.05),
-        legend.justification = c("right", "bottom"),
-        legend.direction = "vertical")
-
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.95, 0.05),
+    legend.justification = c("right", "bottom"),
+    legend.direction = "vertical"
+  )
