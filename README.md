@@ -1,4 +1,6 @@
-# README
+# DiscRep
+[![DOI](https://zenodo.org/badge/982792508.svg)](https://doi.org/10.5281/zenodo.18672879)
+
 
 DiscRep provides tools for assessing replicability using the distinguishability criterion and posterior-PRP. It supports random and fixed effect models, tests for heterogeneity and publication bias, and tissue-specific eQTL analysis.
 
