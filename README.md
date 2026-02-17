@@ -5,14 +5,13 @@ DiscRep provides tools for assessing replicability using the distinguishability 
 ## System Requirements
 
 - Software Dependencies:
+
   - R (>= v3.5.0).
   - R packages: stats (>= v4.4.3, base R), devtools (>= v2.4.5, for installation only).
-
 - Tested Environments:
+
   - Windows 11 (22H2), 13th Gen Intel Core i9-13900HX, 16GB RAM.
-
 - Hardware: Standard desktop/laptop (no specialized hardware required).
-
 
 ## Installation
 
@@ -39,16 +38,17 @@ library(DiscRep)
 The package provides three datasets for illustrative purposes: `dat.ha`, `dat.lcj`, and `dat.slf`. Each dataset represents meta-analytic data.
 
 - **`dat.ha`**: A data frame of 109 studies investigating the effect of placebo interventions on patient-reported outcomes across clinical conditions.
+
   - `y`: Observed effect size for each study.
   - `s2`: Within-study variance for each study.
   - **Source**: Hróbjartsson A, Gøtzsche PC (2010). *Cochrane Database of Systematic Reviews*, **1**. Art. No.: CD003974. [doi:10.1002/14651858.CD003974.pub3](https://doi.org/10.1002/14651858.CD003974.pub3).
-
 - **`dat.lcj`**: A data frame of 33 studies examining the effect of progressive resistance strength training on physical function in older adults.
+
   - `y`: Observed effect size for each study.
   - `s2`: Within-study variance for each study.
   - **Source**: Liu CJ, Latham NK (2009). *Cochrane Database of Systematic Reviews*, **3**. Art. No.: CD002759. [doi:10.1002/14651858.CD002759.pub2](https://doi.org/10.1002/14651858.CD002759.pub2).
-
 - **`dat.slf`**: A data frame of 56 studies exploring the effect of nicotine gum on smoking cessation.
+
   - `y`: Observed effect size for each study.
   - `s2`: Within-study variance for each study.
   - **Source**: Stead LF et al. (2012). *Cochrane Database of Systematic Reviews*, **11**. Art. No.: CD000146. [doi:10.1002/14651858.CD000146.pub4](https://doi.org/10.1002/14651858.CD000146.pub4).
@@ -62,8 +62,6 @@ data("dat.ha")
 data("dat.lcj")
 data("dat.slf")
 ```
-
-
 
 ## Functions
 
@@ -92,13 +90,14 @@ results_random_egger <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_
 print(results_random_egger)
 ```
 
-Expected output is `results_random_egger$p_value`, which is posterior-PRP. Posterior-PRP < 0.05 supports irreplicability. 
+Expected output is `results_random_egger$p_value`, which is posterior-PRP. Posterior-PRP < 0.05 supports irreplicability.
 
 The program run time for repeating this example 2000 times using parallel computation in R on the previously provided computer specifications is 20 minutes.
 
 #### Additional Examples:
+
 - Using the `Q` test:
-  
+
 ```r
 results_random_q <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, test = "Q", k_vec = k_vec)
 ```
@@ -117,7 +116,6 @@ If omitted, the function uses default
 and caches it in the current R process.
 For large simulation loops, precompute `k_vec` once outside the loop and pass it in.
 The function warns if any `k_vec > 0.2726814`, because only `k` in `[0, 0.2726814]` corresponds to `P_mis < 0.05`.
-
 
 ### 2. Get posterior-PRPs under Fixed Effect Model: `fixed_effect`
 
@@ -146,7 +144,7 @@ print(p_value_q)
 
 ### 4. Numerical Calculation of Posterior-PRP: `calc_PRP_FE_NumInt`
 
-This function calculates the Posterior-PRP (Posterior Predictive Replication Probability) using numerical integration under the fixed effect model. 
+This function calculates the Posterior-PRP (Posterior Predictive Replication Probability) using numerical integration under the fixed effect model.
 It integrates over the posterior distribution of true effect sizes.
 
 #### Usage Example:
@@ -199,27 +197,22 @@ prp_result <- calc_PRP_FE_NumInt(hat_beta, hat_sigma_sq)
 print(prp_result)
 ```
 
-
 ## Data and reproducibility
 
-All the R scripts to reproduce the numeric simulation results and real data analysis in 
-the manuscript can be found in “paper_repro�?folder.
-
+All the R scripts to reproduce the numeric simulation results and real data analysis in
+the manuscript can be found in "paper_repro" folder.
 
 # References
 
 The datasets used in this package are based on results from systematic reviews. Below are the sources for the data:
 
 - Hróbjartsson A, Gøtzsche PC (2010). "Placebo interventions for all clinical conditions." *Cochrane Database of Systematic Reviews*, **1**. Art. No.: CD003974. [https://doi.org/10.1002/14651858.CD003974.pub3](https://doi.org/10.1002/14651858.CD003974.pub3)
-
 - Liu CJ, Latham NK (2009). "Progressive resistance strength training for improving physical function in older adults." *Cochrane Database of Systematic Reviews*, **3**. Art. No.: CD002759. [https://doi.org/10.1002/14651858.CD002759.pub2](https://doi.org/10.1002/14651858.CD002759.pub2)
-
 - Stead LF, Perera R, Bullen C, Mant D, Hartmann-Boyce J, Cahill K, Lancaster T (2012). "Nicotine replacement therapy for smoking cessation." *Cochrane Database of Systematic Reviews*, **11**. Art. No.: CD000146. [https://doi.org/10.1002/14651858.CD000146.pub4](https://doi.org/10.1002/14651858.CD000146.pub4)
 
 ---
 
 These references can be cited when using the datasets included in this package, as they originate from these systematic reviews.
-
 
 ## Contributing
 
