@@ -13,7 +13,12 @@ metropolis_hastings(
   test = "Q",
   side = "one.side",
   k_vec = NULL,
-  bar_beta_init = NULL
+  bar_beta_init = NULL,
+  k_vec_dist = c("log_uniform_pmis", "uniform_pmis", "trunc_beta_pmis", "constant_pmis",
+    "uniform_k"),
+  p_mis_constant = 0.05,
+  beta_shape1 = 2,
+  beta_shape2 = 8
 )
 }
 \arguments{
@@ -35,12 +40,45 @@ metropolis_hastings(
 If \code{k_vec} is \code{NULL}, a default vector is generated using
 \verb{pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)},
 and cached for reuse within the current R process.
+Users can also select alternative generation modes via \code{k_vec_dist}.
+If \code{k_vec} is provided, it always takes priority and is used directly.
+If both \code{k_vec} and \code{k_vec_dist} are supplied, a warning is issued and
+\code{k_vec_dist} is ignored.
 If \code{k_vec} has length 1, a fixed heterogeneity level is used.
 If \code{k_vec} has length > 1, \code{k} is sampled from \code{k_vec} during MCMC.
 Example generation: \verb{pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)}.}
 
 \item{bar_beta_init}{Numeric scalar (optional). Initial value of \code{bar_beta} at iteration 1.
 If \code{NULL}, the default initialization is \code{hat_beta[1]}.}
+
+\item{k_vec_dist}{Character. Method used to generate \code{k_vec} when \code{k_vec = NULL}.
+If \code{k_vec} is supplied manually, this argument is ignored.
+If both are supplied, a warning is issued.
+Options are:
+\code{"log_uniform_pmis"} (default): use
+\code{pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)},
+then map each \code{P_mis} to \code{k} by \code{inverse_P_mis}.
+This is equivalent to sampling
+\verb{-\\log_\{10\}(P_mis) ~ Uniform[-\\log_\{10\}(0.05), 10]}.
+\code{"uniform_pmis"}: sample \code{P_mis ~ Uniform[0, 0.05]}, then
+convert to \code{k} using \code{inverse_P_mis}.
+\code{"trunc_beta_pmis"}: sample \code{P_mis} from a Beta distribution
+with parameters \code{beta_shape1} and \code{beta_shape2},
+truncated to \verb{[0, 0.05]}, then convert to \code{k}
+using \code{inverse_P_mis}.
+\code{"constant_pmis"}: use one constant \code{P_mis} value
+(\code{p_mis_constant}) and convert it to one fixed \code{k}.
+\code{"uniform_k"}: sample \code{k} directly from
+\code{Uniform[0, 0.2726813]} (without \code{inverse_P_mis}).}
+
+\item{p_mis_constant}{Numeric scalar in \verb{[0, 0.05]}, used only when
+\code{k_vec_dist = "constant_pmis"}.}
+
+\item{beta_shape1}{Numeric scalar > 0. Shape 1 parameter for beta distribution
+when \code{k_vec_dist = "trunc_beta_pmis"}.}
+
+\item{beta_shape2}{Numeric scalar > 0. Shape 2 parameter for beta distribution
+when \code{k_vec_dist = "trunc_beta_pmis"}.}
 }
 \value{
 A list containing the following elements:
@@ -95,5 +133,15 @@ result_custom_init <- metropolis_hastings(
   hat_beta = c(0.4, 0.6),
   hat_sigma_sq = c(0.1, 0.2),
   bar_beta_init = 0.5
+)
+
+# Use Uniform[0, 0.05] for P_mis
+result_uniform_pmis <- metropolis_hastings(
+  N = 10000,
+  r = 0.05,
+  m = 2,
+  hat_beta = c(0.4, 0.6),
+  hat_sigma_sq = c(0.1, 0.2),
+  k_vec_dist = "uniform_pmis"
 )
 }

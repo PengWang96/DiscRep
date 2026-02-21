@@ -40,3 +40,35 @@ pvec <- seq(0,  0.05, 0.0001)
 k_vec <- sapply(pvec, inverse_P_mis)
 hist(k_vec)
 hist(pvec)
+
+data("dat.slf")
+m <- nrow(dat.slf)
+hat_beta <- dat.slf$y
+hat_sigma_sq <- dat.slf$s2
+
+results_random_log_uniform_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq)
+
+results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726814)
+
+results_random_uniform_pmis <- metropolis_hastings(
+  10000, 0.05, m, hat_beta, hat_sigma_sq,
+  k_vec_dist = "uniform_pmis"
+)
+
+results_random_trunc_beta <- metropolis_hastings(
+  10000, 0.05, m, hat_beta, hat_sigma_sq,
+  k_vec_dist = "trunc_beta_pmis",
+  beta_shape1 = 2,
+  beta_shape2 = 8
+)
+
+results_random_constant_pmis <- metropolis_hastings(
+  10000, 0.05, m, hat_beta, hat_sigma_sq,
+  k_vec_dist = "constant_pmis",
+  p_mis_constant = 0.02
+)
+
+results_random_uniform_k <- metropolis_hastings(
+  10000, 0.05, m, hat_beta, hat_sigma_sq,
+  k_vec_dist = "uniform_k"
+)

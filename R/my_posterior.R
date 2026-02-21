@@ -15,11 +15,40 @@
 #'              If `k_vec` is `NULL`, a default vector is generated using
 #'              `pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)`,
 #'              and cached for reuse within the current R process.
+#'              Users can also select alternative generation modes via `k_vec_dist`.
+#'              If `k_vec` is provided, it always takes priority and is used directly.
+#'              If both `k_vec` and `k_vec_dist` are supplied, a warning is issued and
+#'              `k_vec_dist` is ignored.
 #'              If `k_vec` has length 1, a fixed heterogeneity level is used.
 #'              If `k_vec` has length > 1, `k` is sampled from `k_vec` during MCMC.
 #'              Example generation: `pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05); k_vec <- sapply(pvec, inverse_P_mis)`.
 #' @param bar_beta_init Numeric scalar (optional). Initial value of `bar_beta` at iteration 1.
 #'              If `NULL`, the default initialization is `hat_beta[1]`.
+#' @param k_vec_dist Character. Method used to generate `k_vec` when `k_vec = NULL`.
+#'              If `k_vec` is supplied manually, this argument is ignored.
+#'              If both are supplied, a warning is issued.
+#'              Options are:
+#'              `"log_uniform_pmis"` (default): use
+#'              `pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)`,
+#'              then map each `P_mis` to `k` by `inverse_P_mis`.
+#'              This is equivalent to sampling
+#'              `-\log_{10}(P_mis) ~ Uniform[-\log_{10}(0.05), 10]`.
+#'              `"uniform_pmis"`: sample `P_mis ~ Uniform[0, 0.05]`, then
+#'              convert to `k` using `inverse_P_mis`.
+#'              `"trunc_beta_pmis"`: sample `P_mis` from a Beta distribution
+#'              with parameters `beta_shape1` and `beta_shape2`,
+#'              truncated to `[0, 0.05]`, then convert to `k`
+#'              using `inverse_P_mis`.
+#'              `"constant_pmis"`: use one constant `P_mis` value
+#'              (`p_mis_constant`) and convert it to one fixed `k`.
+#'              `"uniform_k"`: sample `k` directly from
+#'              `Uniform[0, 0.2726813]` (without `inverse_P_mis`).
+#' @param p_mis_constant Numeric scalar in `[0, 0.05]`, used only when
+#'              `k_vec_dist = "constant_pmis"`.
+#' @param beta_shape1 Numeric scalar > 0. Shape 1 parameter for beta distribution
+#'              when `k_vec_dist = "trunc_beta_pmis"`.
+#' @param beta_shape2 Numeric scalar > 0. Shape 2 parameter for beta distribution
+#'              when `k_vec_dist = "trunc_beta_pmis"`.
 #' @return A list containing the following elements:
 #' \item{p_value}{Numeric. The computed p-value for the test.}
 #' \item{bar_beta}{Numeric vector. The estimated posterior means for each iteration of MCMC.}
@@ -68,12 +97,40 @@
 #'   hat_sigma_sq = c(0.1, 0.2),
 #'   bar_beta_init = 0.5
 #' )
+#'
+#' # Use Uniform[0, 0.05] for P_mis
+#' result_uniform_pmis <- metropolis_hastings(
+#'   N = 10000,
+#'   r = 0.05,
+#'   m = 2,
+#'   hat_beta = c(0.4, 0.6),
+#'   hat_sigma_sq = c(0.1, 0.2),
+#'   k_vec_dist = "uniform_pmis"
+#' )
 #' @export
 metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
-                                side = "one.side", k_vec = NULL, bar_beta_init = NULL) {
+                                side = "one.side", k_vec = NULL, bar_beta_init = NULL,
+                                k_vec_dist = c("log_uniform_pmis", "uniform_pmis", "trunc_beta_pmis",
+                                               "constant_pmis", "uniform_k"),
+                                p_mis_constant = 0.05,
+                                beta_shape1 = 2, beta_shape2 = 8) {
 
-  if (is.null(k_vec)) {
-    k_vec <- get_default_k_vec()
+  k_vec_dist_supplied <- !missing(k_vec_dist)
+  if (!is.null(k_vec)) {
+    if (k_vec_dist_supplied) {
+      warning(
+        "k_vec is provided, so k_vec_dist is ignored and the supplied k_vec is used.",
+        call. = FALSE
+      )
+    }
+  } else {
+    k_vec_dist <- match.arg(k_vec_dist)
+    k_vec <- get_default_k_vec(
+      k_vec_dist = k_vec_dist,
+      p_mis_constant = p_mis_constant,
+      beta_shape1 = beta_shape1,
+      beta_shape2 = beta_shape2
+    )
   }
 
   if (!is.numeric(k_vec) || length(k_vec) == 0 || anyNA(k_vec)) {
@@ -403,14 +460,86 @@ inverse_P_mis <- function(P_mis_val, lower = 1e-6, upper = 100,
 # Cache default k-grid once per R process to avoid repeated inverse_P_mis calls.
 .disc_rep_cache <- new.env(parent = emptyenv())
 
-get_default_k_vec <- function() {
-  k_vec_default <- get0("k_vec_default", envir = .disc_rep_cache, inherits = FALSE)
-  if (is.null(k_vec_default)) {
-    pvec <- c(10^seq(-10, log10(0.05), 0.01), 0.05)
-    k_vec_default <- sapply(pvec, inverse_P_mis)
-    assign("k_vec_default", k_vec_default, envir = .disc_rep_cache)
+pmis_to_k <- function(pmis_val) {
+  if (pmis_val <= 0) {
+    return(0)
   }
-  k_vec_default
+  inverse_P_mis(pmis_val)
+}
+
+generate_pmis_vec <- function(k_vec_dist, p_mis_constant, beta_shape1, beta_shape2) {
+  n_draw <- 871L
+
+  if (k_vec_dist == "log_uniform_pmis") {
+    return(c(10^seq(-10, log10(0.05), 0.01), 0.05))
+  }
+
+  if (k_vec_dist == "uniform_pmis") {
+    return(runif(n_draw, min = 0, max = 0.05))
+  }
+
+  if (k_vec_dist == "trunc_beta_pmis") {
+    if (!is.numeric(beta_shape1) || length(beta_shape1) != 1 || is.na(beta_shape1) ||
+        !is.finite(beta_shape1) || beta_shape1 <= 0) {
+      stop("beta_shape1 must be a single positive finite numeric value.")
+    }
+    if (!is.numeric(beta_shape2) || length(beta_shape2) != 1 || is.na(beta_shape2) ||
+        !is.finite(beta_shape2) || beta_shape2 <= 0) {
+      stop("beta_shape2 must be a single positive finite numeric value.")
+    }
+
+    upper_cdf <- stats::pbeta(0.05, shape1 = beta_shape1, shape2 = beta_shape2)
+    if (!is.finite(upper_cdf) || upper_cdf <= .Machine$double.eps) {
+      stop(
+        "The truncated probability mass on [0, 0.05] is numerically zero; change beta_shape1/beta_shape2."
+      )
+    }
+    return(stats::qbeta(runif(n_draw, min = 0, max = upper_cdf),
+                        shape1 = beta_shape1, shape2 = beta_shape2))
+  }
+
+  if (k_vec_dist == "constant_pmis") {
+    if (!is.numeric(p_mis_constant) || length(p_mis_constant) != 1 || is.na(p_mis_constant) ||
+        !is.finite(p_mis_constant) || p_mis_constant < 0 || p_mis_constant > 0.05) {
+      stop("p_mis_constant must be a single numeric value in [0, 0.05].")
+    }
+    return(p_mis_constant)
+  }
+
+  stop(
+    "Unsupported k_vec_dist value. Please check that the mode name is correct: 'log_uniform_pmis', 'uniform_pmis', 'trunc_beta_pmis', 'constant_pmis', or 'uniform_k'. You can also generate k_vec manually with inverse_P_mis() or pass a precomputed k_vec directly."
+  )
+}
+
+get_default_k_vec <- function(k_vec_dist = "log_uniform_pmis",
+                              p_mis_constant = 0.05,
+                              beta_shape1 = 2, beta_shape2 = 8) {
+  if (k_vec_dist == "uniform_k") {
+    return(runif(871L, min = 0, max = 0.2726813))
+  }
+
+  if (k_vec_dist == "log_uniform_pmis") {
+    k_vec_default <- get0("k_vec_default", envir = .disc_rep_cache, inherits = FALSE)
+    if (is.null(k_vec_default)) {
+      pvec <- generate_pmis_vec(
+        k_vec_dist = "log_uniform_pmis",
+        p_mis_constant = p_mis_constant,
+        beta_shape1 = beta_shape1,
+        beta_shape2 = beta_shape2
+      )
+      k_vec_default <- vapply(pvec, pmis_to_k, numeric(1))
+      assign("k_vec_default", k_vec_default, envir = .disc_rep_cache)
+    }
+    return(k_vec_default)
+  }
+
+  pvec <- generate_pmis_vec(
+    k_vec_dist = k_vec_dist,
+    p_mis_constant = p_mis_constant,
+    beta_shape1 = beta_shape1,
+    beta_shape2 = beta_shape2
+  )
+  vapply(pvec, pmis_to_k, numeric(1))
 }
 
 
