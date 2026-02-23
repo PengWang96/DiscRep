@@ -53,12 +53,13 @@
 #' \item{p_value}{Numeric. The computed p-value for the test.}
 #' \item{bar_beta}{Numeric vector. The estimated posterior means for each iteration of MCMC.}
 #' \item{acception}{Numeric. The acceptance rate of the Metropolis-Hastings algorithm.}
+#' \item{burn_in_ratio}{Numeric. The burn-in ratio used in this run.}
 #' @details
 #' This function implements a Metropolis-Hastings algorithm to sample from the posterior
 #' distribution of the model parameters under the distinguishability criterion.
 #' If `k_vec` is not provided, a default `k_vec` is generated and cached.
-#' A warning is issued if any value in `k_vec` is greater than 0.2726814,
-#' because only `0 <= k <= 0.2726814` corresponds to `P_mis < 0.05`.
+#' A warning is issued if any value in `k_vec` is greater than 0.2726813,
+#' because only `0 <= k <= 0.2726813` corresponds to `P_mis < 0.05`.
 #'
 #' @importFrom stats rnorm runif
 #' @examples
@@ -147,10 +148,10 @@ metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
     stop("bar_beta_init must be a single finite numeric value.")
   }
 
-  k_pmis_0_05 <- 0.2726814
+  k_pmis_0_05 <- 0.2726813
   if (any(k_vec > k_pmis_0_05)) {
     warning(
-      "Use heterogeneity levels > 0.2726814 with caution: only 0 <= k <= 0.2726814 corresponds to P_mis < 0.05.",
+      "Use heterogeneity levels > 0.2726813 with caution: only 0 <= k <= 0.2726813 corresponds to P_mis < 0.05.",
       call. = FALSE
     )
   }
@@ -160,7 +161,7 @@ metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
   # Initialization
   bar_beta_start <- if (is.null(bar_beta_init)) hat_beta[1] else bar_beta_init
   k_max <- if (is_fixed_k) k_vec[1] else k_pmis_0_05
-  # k = 100, 0.5420572, 0.4626489, 0.3349839, 0.2726814 corresponding to P_mis = 0.5, 0.25, 0.2, 0.1, 0.05
+  # k = 100, 0.5420572, 0.4626489, 0.3349839, 0.2726813 corresponding to P_mis = 0.5, 0.25, 0.2, 0.1, 0.05
   bar_beta <- rep(bar_beta_start, N)
   k <- rep(k_max, N)
   count <- 0
@@ -251,7 +252,176 @@ metropolis_hastings <- function(N, r, m, hat_beta, hat_sigma_sq, test = "Q",
     p_value <- hotelling_t_squared(beta_prime_H = beta_prime_H, hat_beta, hat_sigma_sq, df = N-N*r)
   }
 
-  list(p_value = p_value, bar_beta = bar_beta, acception = acception/N)
+  list(
+    p_value = p_value,
+    bar_beta = bar_beta,
+    acception = acception / N,
+    burn_in_ratio = r
+  )
+}
+
+
+
+
+#' MCMC Diagnostics for Metropolis-Hastings Output
+#'
+#' This function summarizes and visualizes MCMC diagnostics based on
+#' `metropolis_hastings()` output. It computes diagnostics using post-burn-in
+#' samples and produces:
+#' 1) trace plot,
+#' 2) autocorrelation function (ACF) curve,
+#' 3) effective sample size (ESS),
+#' 4) acceptance ratio.
+#'
+#' @param mh_result A list returned by `metropolis_hastings()`.
+#' @param r Numeric scalar in `[0, 1)` (optional). Burn-in ratio used to define
+#'   post-burn samples. If `NULL`, the function tries `mh_result$burn_in_ratio`
+#'   first, and then uses `0.05` if unavailable.
+#' @param lag_max Integer scalar. Maximum lag used for ACF and ESS
+#'   calculation. Defaults to `50`. Internally capped at `post_burn_n - 1`.
+#' @param plot Logical. If `TRUE`, draw post-burn trace plot and ACF curve.
+#' @param verbose Logical. If `TRUE`, print key diagnostics.
+#'
+#' @return A list with:
+#' \item{post_burn_chain}{Numeric vector of post-burn samples.}
+#' \item{burn_in_n}{Integer. Number of discarded burn-in samples.}
+#' \item{post_burn_n}{Integer. Number of post-burn samples.}
+#' \item{ess}{Numeric. Effective sample size of post-burn chain.}
+#' \item{acceptance_ratio_total}{Numeric. Acceptance ratio from MH output.}
+#' \item{acceptance_ratio_post_burn}{Numeric. Acceptance ratio in post-burn chain.}
+#' \item{acf}{`acf` object computed from post-burn chain.}
+#'
+#' @details
+#' ESS is computed from post-burn autocorrelations:
+#' `ESS = n / (1 + 2 * sum(rho_k))`, where only positive `rho_k` are summed.
+#'
+#' @importFrom stats acf
+#' @examples
+#' set.seed(1)
+#' res <- metropolis_hastings(
+#'   N = 2000,
+#'   r = 0.05,
+#'   m = 2,
+#'   hat_beta = c(0.4, 0.6),
+#'   hat_sigma_sq = c(0.1, 0.2)
+#' )
+#' diag_res <- mcmc_diagnostics(res)
+#' diag_res$ess
+#' @export
+mcmc_diagnostics <- function(mh_result, r = NULL, lag_max = 50,
+                             plot = TRUE, verbose = TRUE) {
+  if (!is.list(mh_result)) {
+    stop("mh_result must be a list returned by metropolis_hastings().")
+  }
+  if (is.null(mh_result$bar_beta)) {
+    stop("mh_result must contain `bar_beta`.")
+  }
+  if (is.null(r)) {
+    if (!is.null(mh_result$burn_in_ratio)) {
+      r <- mh_result$burn_in_ratio
+    } else if (!is.null(mh_result$r)) {
+      r <- mh_result$r
+    } else {
+      r <- 0.05
+    }
+  }
+  if (!is.numeric(r) || length(r) != 1 || is.na(r) || !is.finite(r) || r < 0 || r >= 1) {
+    stop("r must be a single numeric value in [0, 1).")
+  }
+  if (!is.null(lag_max) &&
+      (!is.numeric(lag_max) || length(lag_max) != 1 || is.na(lag_max) ||
+       !is.finite(lag_max) || lag_max < 1)) {
+    stop("lag_max must be NULL or a single positive numeric value.")
+  }
+  if (!is.logical(plot) || length(plot) != 1 || is.na(plot)) {
+    stop("plot must be TRUE or FALSE.")
+  }
+  if (!is.logical(verbose) || length(verbose) != 1 || is.na(verbose)) {
+    stop("verbose must be TRUE or FALSE.")
+  }
+
+  chain <- mh_result$bar_beta
+  if (is.matrix(chain)) {
+    if (nrow(chain) == 1 || ncol(chain) == 1) {
+      chain <- as.numeric(chain)
+    } else {
+      stop("mh_result$bar_beta must be a numeric vector.")
+    }
+  }
+  if (!is.numeric(chain) || anyNA(chain) || any(!is.finite(chain))) {
+    stop("mh_result$bar_beta must be a finite numeric vector without NA.")
+  }
+  if (length(chain) < 3) {
+    stop("mh_result$bar_beta must contain at least 3 samples.")
+  }
+
+  n_total <- length(chain)
+  burn_in_n <- floor(n_total * r)
+  post_burn_n <- n_total - burn_in_n
+
+  if (post_burn_n < 2) {
+    stop("Burn-in ratio is too large: fewer than 2 post-burn samples remain.")
+  }
+
+  post_burn_chain <- chain[(burn_in_n + 1L):n_total]
+
+  lag_limit <- min(as.integer(floor(lag_max)), post_burn_n - 1L)
+  lag_limit <- max(1L, lag_limit)
+
+  acf_obj <- stats::acf(post_burn_chain, lag.max = lag_limit, plot = FALSE)
+  acf_values <- as.numeric(acf_obj$acf)
+  rho <- acf_values[-1L]
+  rho_pos <- rho[rho > 0]
+
+  ess <- post_burn_n / (1 + 2 * sum(rho_pos))
+  ess <- max(1, min(post_burn_n, ess))
+
+  acceptance_ratio_total <- mh_result$acception
+  if (is.null(acceptance_ratio_total) || !is.numeric(acceptance_ratio_total) ||
+      length(acceptance_ratio_total) != 1 || is.na(acceptance_ratio_total) ||
+      !is.finite(acceptance_ratio_total)) {
+    acceptance_ratio_total <- mean(diff(chain) != 0)
+  }
+
+  acceptance_ratio_post_burn <- mean(diff(post_burn_chain) != 0)
+
+  if (plot) {
+    old_par <- graphics::par(no.readonly = TRUE)
+    on.exit(graphics::par(old_par), add = TRUE)
+
+    graphics::par(mfrow = c(1, 2))
+    graphics::plot(
+      x = seq_len(post_burn_n),
+      y = post_burn_chain,
+      type = "l",
+      xlab = "Iteration (post-burn)",
+      ylab = "bar_beta",
+      main = "Trace plot (post-burn)"
+    )
+    graphics::abline(h = mean(post_burn_chain), col = "red", lty = 2)
+    stats::acf(post_burn_chain, lag.max = lag_limit, main = "ACF (post-burn)")
+  }
+
+  if (verbose) {
+    cat("MCMC diagnostics\n")
+    cat("Total iterations:", n_total, "\n")
+    cat("Burn-in ratio:", signif(r, 6), "\n")
+    cat("Burn-in samples:", burn_in_n, "\n")
+    cat("Post-burn samples:", post_burn_n, "\n")
+    cat("Effective sample size (ESS):", signif(ess, 6), "\n")
+    cat("Acceptance ratio (total):", signif(acceptance_ratio_total, 6), "\n")
+    cat("Acceptance ratio (post-burn):", signif(acceptance_ratio_post_burn, 6), "\n")
+  }
+
+  list(
+    post_burn_chain = post_burn_chain,
+    burn_in_n = burn_in_n,
+    post_burn_n = post_burn_n,
+    ess = ess,
+    acceptance_ratio_total = acceptance_ratio_total,
+    acceptance_ratio_post_burn = acceptance_ratio_post_burn,
+    acf = acf_obj
+  )
 }
 
 

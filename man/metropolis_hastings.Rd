@@ -85,6 +85,7 @@ A list containing the following elements:
 \item{p_value}{Numeric. The computed p-value for the test.}
 \item{bar_beta}{Numeric vector. The estimated posterior means for each iteration of MCMC.}
 \item{acception}{Numeric. The acceptance rate of the Metropolis-Hastings algorithm.}
+\item{burn_in_ratio}{Numeric. The burn-in ratio used in this run.}
 }
 \description{
 This function computes the posterior probability under the distinguishability criterion
@@ -95,8 +96,8 @@ It is designed to test hypotheses of replicability with tolerable heterogeneity 
 This function implements a Metropolis-Hastings algorithm to sample from the posterior
 distribution of the model parameters under the distinguishability criterion.
 If \code{k_vec} is not provided, a default \code{k_vec} is generated and cached.
-A warning is issued if any value in \code{k_vec} is greater than 0.2726814,
-because only \verb{0 <= k <= 0.2726814} corresponds to \code{P_mis < 0.05}.
+A warning is issued if any value in \code{k_vec} is greater than 0.2726813,
+because only \verb{0 <= k <= 0.2726813} corresponds to \code{P_mis < 0.05}.
 }
 \examples{
 # Generate k_vec using a logarithmic sequence

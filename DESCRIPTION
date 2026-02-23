@@ -1,6 +1,6 @@
 Package: DiscRep
 Title: Diagnosing Scientific Replicability through Probabilistic Distinguishability
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: 
     c(person("Peng", "Wang", email = "wangpeng21@mails.jlu.edu.cn", role = c("aut", "cre")),
     person("Xiaoquan", "Wen", email = "xwen@umich.edu", role = "aut"),

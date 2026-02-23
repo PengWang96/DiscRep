@@ -74,11 +74,10 @@ The `metropolis_hastings` function fits a random effect model using the Metropol
 #### Usage Example:
 
 ```r
-# Load necessary data
-data("dat.slf")
-m <- nrow(dat.slf)
-hat_beta <- dat.slf$y
-hat_sigma_sq <- dat.slf$s2
+# Create a small tutorial dataset (4 studies)
+m <- 4
+hat_beta <- c(0.06, 0.02, -0.01, -0.05)
+hat_sigma_sq <- c(0.02, 0.03, 0.025, 0.05)
 
 # Optional: precompute k_vec once and reuse
 # (recommended for large simulations to avoid repeated setup cost).
@@ -104,10 +103,10 @@ The program run time for repeating this example 2000 times using parallel comput
 results_random_q <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, test = "Q", k_vec = k_vec)
 ```
 
-- Specifying a fixed tolerable heterogeneity level (e.g., `k = 0.2726814` corresponds to $P_{mis} = 0.05$):
+- Specifying a fixed tolerable heterogeneity level (e.g., `k = 0.2726813` corresponds to $P_{mis} = 0.05$):
 
 ```r
-results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726814)
+results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726813)
 ```
 
 - Sampling from Uniform$[0, 0.05]$ for `P_mis`:
@@ -158,9 +157,45 @@ and caches it in the current R process.
 Available `k_vec_dist` options are:
 `"log_uniform_pmis"`, `"uniform_pmis"`, `"trunc_beta_pmis"`, `"constant_pmis"`, and `"uniform_k"`.
 For large simulation loops, precompute `k_vec` once outside the loop and pass it in.
-The function warns if any `k_vec > 0.2726814`, because only `k` in `[0, 0.2726814]` corresponds to `P_mis < 0.05`.
+The function warns if any `k_vec > 0.2726813`, because only `k` in `[0, 0.2726813]` corresponds to `P_mis < 0.05`.
 
-### 2. Get posterior-PRPs under Fixed Effect Model: `fixed_effect`
+### 2. MCMC diagnostics for random effect model output: `mcmc_diagnostics`
+
+The `mcmc_diagnostics` function takes the output of `metropolis_hastings` and provides post-burn MCMC diagnostics in one call:
+
+- Trace plot (post-burn chain)
+- ACF curve (post-burn chain)
+- Effective sample size (ESS)
+- Acceptance ratio (overall and post-burn)
+
+#### Tutorial:
+
+```r
+# Run random effect model (example with Q test)
+results_random_q <- metropolis_hastings(
+  10000, 0.05, m, hat_beta, hat_sigma_sq,
+  test = "Q", k_vec = k_vec
+)
+
+# One-call diagnostics:
+# - uses the burn-in ratio stored in results_random_q by default
+# - draws post-burn trace and ACF plots
+diag_res <- mcmc_diagnostics(results_random_q)
+
+# Access key quantities
+diag_res$ess
+diag_res$acceptance_ratio_total
+diag_res$acceptance_ratio_post_burn
+
+# Optional: no plotting / no console printing
+diag_res_quiet <- mcmc_diagnostics(
+  results_random_q,
+  plot = FALSE,
+  verbose = FALSE
+)
+```
+
+### 3. Get posterior-PRPs under Fixed Effect Model: `fixed_effect`
 
 The `fixed_effect` function fits a fixed effect model using a Monte Carlo simulation.
 
@@ -174,7 +209,7 @@ results_fixed <- fixed_effect(10000, m, hat_beta, hat_sigma_sq)
 print(results_fixed)
 ```
 
-### 3. Cochran's Q Test: `frequency_pvalue`
+### 4. Cochran's Q Test: `frequency_pvalue`
 
 The `frequency_pvalue` function calculates the p-value for Cochran's Q test in the fixed effect model. This is useful for assessing heterogeneity across studies.
 
@@ -185,7 +220,7 @@ p_value_q <- frequency_pvalue(hat_beta, hat_sigma_sq)
 print(p_value_q)
 ```
 
-### 4. Numerical Calculation of Posterior-PRP: `calc_PRP_FE_NumInt`
+### 5. Numerical Calculation of Posterior-PRP: `calc_PRP_FE_NumInt`
 
 This function calculates the Posterior-PRP (Posterior Predictive Replication Probability) using numerical integration under the fixed effect model.
 It integrates over the posterior distribution of true effect sizes.
@@ -202,13 +237,10 @@ print(prp_result)
 Here's a complete workflow using the provided functions:
 
 ```r
-# Load necessary data
-data("dat.slf")
-
-# Extract values
-m <- nrow(dat.slf)
-hat_beta <- dat.slf$y
-hat_sigma_sq <- dat.slf$s2
+# Create a small tutorial dataset (4 studies)
+m <- 4
+hat_beta <- c(0.06, 0.02, -0.01, -0.05)
+hat_sigma_sq <- c(0.02, 0.03, 0.025, 0.05)
 
 # Optional: precompute k_vec once and reuse
 # (recommended for large simulations to avoid repeated setup cost).
@@ -224,7 +256,7 @@ results_random_q <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, 
 print(results_random_q)
 
 # Random Effect Model with fixed heterogeneity level
-results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726814)
+results_random_fixed_k <- metropolis_hastings(10000, 0.05, m, hat_beta, hat_sigma_sq, k_vec = 0.2726813)
 print(results_random_fixed_k)
 
 # Random Effect Model using Uniform[0, 0.05] for P_mis
@@ -233,6 +265,11 @@ results_random_uniform_pmis <- metropolis_hastings(
   k_vec_dist = "uniform_pmis"
 )
 print(results_random_uniform_pmis)
+
+# MCMC diagnostics for random effect model output
+diag_res <- mcmc_diagnostics(results_random_q)
+print(diag_res$ess)
+print(diag_res$acceptance_ratio_total)
 
 # Fixed Effect Model
 results_fixed <- fixed_effect(10000, m, hat_beta, hat_sigma_sq)
